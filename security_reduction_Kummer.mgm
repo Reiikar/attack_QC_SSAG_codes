@@ -1,0 +1,347 @@
+/* Security reduction in the case of a Kummer covering */
+
+clear ;
+print "";
+SetPrintLevel("Default");
+
+p:=2; // characteristic of the base field
+q:=p^4; m:= 3;  
+
+a:=5; b:=2; // calX is constructed as a C_{a,b} curve
+ell:=3;     // quasi-cyclicity order of the code 
+
+Fq:=FiniteField(q);
+Fld<w>:=FiniteField(q^m);  
+	
+	
+/*-------------We construct a cover of curves------------*/
+
+Fqmx<x>:=FunctionField(Fld);
+A<Y1>:=PolynomialRing(Fqmx);
+f1:=Y1^a- (x-w^12)*(x-w^31);    //Equation for calX
+K<y> := ext<Fqmx|f1>;
+f:=K!(y-w*x);
+Q_inf:=Places(K,1)[1];
+d:=-Valuation(f,Q_inf);
+B<Z>:=PolynomialRing(K);
+f2:=Z^ell-f;              //Equation for calY
+L<z>:=ext<K|f2>;
+
+min:=MinimalPolynomial(z,Fqmx);  
+minm:=MinimalPolynomial(y,Fqmx);
+			
+			
+/*The function Homog take as imput:
+	- a bivariate polynomial m;
+	- a finite field Fld;
+and output the homogenized polynomial m in 3 variables over Fld.
+*/
+	
+Homog := function(m,Fld);
+    R<X,Y,Z>:=PolynomialRing(Fld,3);
+    coeff_init:=Coefficients(m);
+    coeff:=[];
+    len:=#coeff_init;
+    for i := 1 to len do
+        j:=Numerator(coeff_init[i]);
+        p:=MultivariatePolynomial(R,j,X);
+        Append(~coeff,p);
+    end for;
+    f:=&+[coeff[i]*Y^(i-1) : i in [1..len]];
+    co:=Coefficients(f);
+    mo:=Monomials(f);
+    lon:=#co;
+    d:=Degree(f);
+    g:=&+[co[i]*mo[i]*Z^(d-Degree(mo[i])) : i in [1..lon]];
+return g;
+end function;
+
+
+poly:=Homog(min,Fld);                 
+poly2:=Homog(minm,Fld);  
+P2<U,V,W>:=ProjectiveSpace(Fld,2);
+P1:=Curve(ProjectiveSpace(Fld,1));
+C1:=Curve(P2,poly2);                  // The quotient curve calX
+C2:=Curve(P2,poly);                    // The cover calY
+L<x1,z>:= FunctionField(C2);      
+K<x0,y>:=FunctionField(C1);
+//f1:=(x1-w^12)*(x1-w^31);
+
+
+Om:=DifferentialSpace(C2);
+dx:=Om!Differential(x1);	
+
+
+/*----We give the function that defines our codes and divisors----------*/
+
+
+/* The function CodeCreation take as input:
+	-an integer r>0 such that the support calQ contains r orbits of size ell;
+	-an integer s>0 such that G=s*ell*Q_inf is a one point divisor;
+and output:
+	-the divisor D;
+	-the residue vector z_w;
+	-a generator matrix G_pub of the public SSAG;
+	-the unknown evaluation vector (z(Q)) for Q in calQ.
+*/		
+
+CodeCreation := function(r,s)
+	SET1:=Places(C2,1);
+	R_inf := SET1[1];
+	Exclude(~SET1,R_inf);
+	Exclude(~SET1,SET1[1]);
+	Plc:=Set(SET1);
+
+	/* Choice of xi */
+
+	POL:=PolynomialRing(Fld);
+	rt:=Roots(POL!CyclotomicPolynomial(ell));
+	xi:=Random(rt)[1];       //root of unity that defines the automorphism
+	sigma:=iso<C2->C2 | [U,xi*V,W],[U,xi^(-1)*V,W]>;
+
+	/* Creation of calQ */
+
+	Supp:=[];
+	Annul:=1;
+	LX:=[];      //vector of x-coordinates
+	LY:=[];
+	repeat
+		R:=Random(Plc);
+    		Exclude(~Plc,R);
+    		if RepresentativePoint(R)[1] notin LX then
+    			Append(~Supp,R);
+    			Append(~LX,RepresentativePoint(R)[1]);
+    			Append(~LY,RepresentativePoint(R)[2]);
+    			for j := 1 to ell-1 do
+        			rr:= (C2!RepresentativePoint(R))@(sigma^j);
+        			RR:=Place(rr);
+        			Append(~LY,RepresentativePoint(RR)[2]);
+        			Exclude(~Plc,RR);
+        			Append(~Supp,RR);
+    			end for;
+    		end if;
+	until #Supp eq r*ell;      //Supp is calQ
+	z_ev := [(Evaluate(z,Supp[i])) : i in [1..#Supp]];  //the unknow z-evaluation
+
+	/* We construct the function iota_P*/
+
+	HQ:=1;
+	for i := 1 to r do
+		HQ := HQ*(x1-LX[i]);
+	end for;
+	D:=&+Supp; // the divisor D_calQ
+
+	/* Creation of the one-point divisor */
+	
+	G:=s*ell*R_inf;
+
+	/* Construction of the differential w */
+
+	Om:=DifferentialSpace(C2);
+	dx:=Om!Differential(x1);
+	y1:=z^ell+w*x1;	
+
+	F2:=(y1-w*x1);
+	F1:=(x1-w^12)*(x1-w^31);
+	Funct := (z*y1) / (F1*F2*HQ);
+	Diff:= Funct*dx;                 // our choice of differential w
+
+	/* Code Construction */
+		
+	D_Q:=&+Supp;
+	SetPrintLevel("Minimal");
+	C:=AGCode(Supp,G);
+	n:=ell*r;
+	print "Parameters of the public SSAG :";
+	print "n=",n;
+	Public_SSAG := SubfieldSubcode(C,Fq);              //The public ell-QC SSAG code
+	print "degG =",Degree(G);
+	print "k=",Dimension(Public_SSAG);
+	print "";
+	G_pub:=ChangeRing(GeneratorMatrix(Public_SSAG),Fld);  //a generator matrix
+	G_dual := D_Q-G+Divisor(Diff);  
+	
+	Vect_res:= [Residue(Diff,Supp[i]) : i in [1..#Supp]]; //z_w supposed unknown
+	Res:=DiagonalMatrix(Vect_res);  //Matrice diagonale Z_w
+		
+	/* Construction of D */
+
+	P_inf := Places(C1,1)[1];
+	Places_inv:=Places(C1,1);
+	G_tilde := Floor(Degree(G)/ell)*P_inf;  // the invariant divisor G_tilde
+	SeqO_p := [];
+	for i := 1 to r do 
+		for j in [1..#Places(C1,1)] do
+			if RepresentativePoint(Places_inv[j])[1] eq LX[i] then 
+				Append(~SeqO_p,RepresentativePoint(Places_inv[j]));
+			end if;
+		end for;
+	end for;
+
+	POL<B>:=PolynomialRing(Fld);
+	O_p:=SeqO_p;
+	Plc_Inv:=[];
+	for i := 1 to #SeqO_p do 
+		tr := B^ell-(SeqO_p[i][2]-w*SeqO_p[i][1]);
+		roots := Roots(tr);
+		if #roots eq ell then 
+			if Place(C2![SeqO_p[i][1],roots[1][1],1]) in Supp then 
+				Exclude(~O_p,SeqO_p[i]);
+				Append(~Plc_Inv,SeqO_p[i]);
+			end if;
+		end if;
+	end for;
+	Pzk := [Place(p) : p in O_p];
+	Supp_Inv:=[Place(p) : p in Plc_Inv];  // the invariant support calP, which is known
+	Op:= &+Pzk;  //The divisor Op in the definition of D
+	D := (Floor((2*Genus(C2)-2+n*a)/ell)-s) * P_inf - Op; //the divisor D		
+	return D,Vect_res,G_pub,Supp_Inv,z_ev;
+end function;	
+
+		
+/*------With our hypotheses, we attack the invariant code----------*/	
+	
+/*The function AttackKummer take as imput:
+	-an integer r>0 such that the support calQ contains r orbits of size ell;
+	-an integer s>0 such that G=s*ell*Q_inf is a one point divisor;
+use the previous function then outputs:
+	-a vector z_found of supposed initial values of z(Q)_Q; 
+	-a vector z_ev which is the true value of Z(Q)_Q;
+If nothing is found by the function, it returns the error message: "error while finding z(Q)_Q"
+*/
+
+AttackKummer:=function(r,s)
+	time DivD,Vect_res,G_pub,Supp_Inv,z_ev:=CodeCreation(r,s);
+	print "above is the time for constructing the codes";
+	Res:=DiagonalMatrix(Vect_res);  //Matrice diagonale Z_w
+	P_inf := Places(Curve(Supp_Inv[1]),1)[1];
+	n:=NumberOfColumns(G_pub);
+		
+	/* Systems for Res_w(Q)z(Q) */	
+					
+	B1 := (Floor(d/ell)+1)*P_inf;          //The divisor B in the first case
+	FBasis:= Basis(DivD-B1); // A basis of the space D-B
+			
+	/* Without geometric progression */
+
+	s := #FBasis;
+	sqd := [];
+	for i in [1..r] do 
+		compt := Evaluate(FBasis[1],Supp_Inv[i]);
+		for j := 1 to ell do 
+			Append(~sqd,compt);
+		end for;
+	end for;
+	D:=DiagonalMatrix(sqd);   //The matrix D_1
+	M:=G_pub*D;
+	for k in [2..s] do
+		sqd := [];
+		for i in [1..r] do 
+			compt := Evaluate(FBasis[k],Supp_Inv[i]);
+			for j := 1 to ell do 
+				Append(~sqd,compt);
+			end for;
+		end for;
+		D:=DiagonalMatrix(sqd);
+		M:=VerticalJoin(M,G_pub*D);
+	end for;	
+	M:=Transpose(M);
+	print "";
+	print "Solvinf for Res_w(Q)*y(Q) :";
+	print "Dim without geometric progression for z_w*y :",Dimension(Kernel(M));	
+	print "";
+	print "Adding geometric progression : serching for xi";
+
+	/* Adding geometric progression */
+	
+	b := false; //booleen vrai si on retrouve Res*Z
+	root_test := RootOfUnity(ell,Fld);
+	e := Fld!1;
+	for j:=1 to ell do                                       //recherche de la bonne racine
+		e := e*root_test;
+		J := PermutationMatrix(Fld,[2..ell]cat[1]);
+		I := IdentityMatrix(Fld,ell);
+		E := e^2*I -J;  // matrice B(xi^2)
+		F := DiagonalJoin([E: i in [1..(n*r div n)]]); // E(xi)
+		MM := HorizontalJoin(M,F);
+		rg_perm := Rank(MM);
+		K := Kernel(MM);
+		print "Dim_system=",Dimension(K);
+		if (Dimension(K) eq 1) then
+			Sol_1 := ElementToSequence(K.1);
+			b := true; //on a retrouvé Res(Pi)y(Pi)
+		break;
+		end if;
+	end for;
+
+
+	/* Solving the system for Res_w(Q)y(Q)^2 */
+		
+	B2 := (Floor(2*d/ell)+1)*P_inf;
+	FBasis_bis:=Basis(DivD-B2); //basis for the space F'	
+		
+	/* Without geometric progression */
+		
+	s_bis := #FBasis_bis;
+	sqd := [];
+	for i in [1..r] do 
+		compt := Evaluate(FBasis_bis[1],Supp_Inv[i]);
+		for j := 1 to ell do 
+			Append(~sqd,compt);
+		end for;
+	end for;
+	D:=DiagonalMatrix(sqd);
+	M2:=G_pub*D;
+	for k in [2..s_bis] do
+		sqd := [];
+		for i in [1..r] do 
+			compt := Evaluate(FBasis_bis[k],Supp_Inv[i]);
+			for j := 1 to ell do 
+				Append(~sqd,compt);
+			end for;
+		end for;
+		D:=DiagonalMatrix(sqd);
+		M2:=VerticalJoin(M2,G_pub*D);
+	end for;	
+	M2:=Transpose(M2);
+	print "";
+	print "Solvinf for Res_w(Q)*y(Q)^2 :";
+	print "Dim without geometric progression for z_w*y^2 :",Dimension(Kernel(M2));	
+	print "";
+	print "Adding geometric progression";
+
+	if (b eq true) then
+
+		/* Adding geometric progression */
+
+		e:=e^3;
+		J := PermutationMatrix(Fld,[2..ell]cat[1]);
+		I := IdentityMatrix(Fld,ell);
+		E2 := e*I -J;  // matrice B(xi^3)
+		F2 := DiagonalJoin([E2: i in [1..(n*r div n)]]); // E(xi)
+		MM2 := HorizontalJoin(M2,F2);
+		rg_perm := Rank(MM2);
+		K2 := Kernel(MM2); 
+		print "Dim=",Dimension(K2);
+		if Dimension(K2) eq 1 then
+			Sol_2 := ElementToSequence(K2.1);//on a retrouvé Res(Pi)y^2(Pi)
+			result :=[];
+			for i:=1 to ell*r do
+				Append(~result, Sol_2[i]*(Sol_1[i]^(-1)));
+			end for;
+			print "";
+			print "We found (z(Q))_Q";
+		else 
+			print "error : on a pas trouve Res*z^2";
+		end if;
+	else
+		print "error while finding z(Q)_Q";
+	end if;
+	
+	z_found := [z_ev[1]*result[i] : i in [1..#result]];
+	return z_found,z_ev;
+end function;	
+
+		
+/* One can check that: z_init eq z_found when no error occured.*/
+
