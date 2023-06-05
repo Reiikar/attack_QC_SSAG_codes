@@ -69,8 +69,6 @@ C1:=Curve(P2,poly2);                  // The quotient curve calX
 C2:=Curve(P2,poly);                    // The cover calY
 L<x1,z>:= FunctionField(C2);      
 K<x0,y>:=FunctionField(C1);
-//f1:=(x1-w^12)*(x1-w^31);
-
 
 Om:=DifferentialSpace(C2);
 dx:=Om!Differential(x1);	
@@ -81,7 +79,7 @@ dx:=Om!Differential(x1);
 
 /* The function CodeCreation take as input:
 	-an integer r>0 such that the support calQ contains r orbits of size ell;
-	-an integer s>0 such that G=s*ell*Q_inf is a one point divisor;
+	-an integer s>0 such that G=s*(Q_1+...+Q_{ell}) is a multiple of and orbit of size ell;
 and output:
 	-the divisor D;
 	-the residue vector z_w;
@@ -202,8 +200,8 @@ CodeCreation := function(r,s)
 		end if;	
 	until #SuppGtilde eq 1;
 	G_tilde := s*SuppGtilde[1];  //the invariant divisor
-
-
+	
+	Places_inv :=Places(C1,1);
 	SeqO_p := [];
 	for i := 1 to r do 
 		for j in [1..#Places(C1,1)] do
@@ -229,7 +227,7 @@ CodeCreation := function(r,s)
 	Pzk := [Place(p) : p in O_p];
 	Supp_Inv:=[Place(p) : p in Plc_Inv];  // the invariant support calP, which is known
 	Op:= &+Pzk;  //The divisor Op in the definition of D
-	D := (Floor((2*Genus(C2)-2+n*a)/ell)) * P_inf - (s+1)*SuppGtilde[1] - Op; //the divisor D		
+	D := (Floor((2*Genus(C2)-2+n*a)/ell)-1) * P_inf - (s+1)*SuppGtilde[1] - Op; //the divisor D		
 	return D,Vect_res,G_pub,Supp_Inv,z_ev;
 end function;	
 
@@ -238,7 +236,7 @@ end function;
 	
 /*The function AttackKummer take as imput:
 	-an integer r>0 such that the support calQ contains r orbits of size ell;
-	-an integer s>0 such that G=s*ell*Q_inf is a one point divisor;
+	-an integer s>0 such that G=s*(Q_1+...+Q_{ell}) is a multiple of and orbit of size ell;
 use the previous function then outputs:
 	-a vector z_found of supposed initial values of z(Q)_Q; 
 	-a vector z_ev which is the true value of Z(Q)_Q;
