@@ -1,5 +1,8 @@
+// load "/home/mlhotel/Bureau/Git/attack_QC_SSAG_codes/security_reduction_Kummer_bis.mgm";
+
 /* Security reduction in the case of a Kummer covering */
-/* Case of a one-point divisor, multiple of the unique point at infinity*/
+/* Case of a divisor which is a multiple of an orbit of size ell*/
+
 
 clear ;
 print "";
@@ -132,9 +135,27 @@ CodeCreation := function(r,s)
 	end for;
 	D:=&+Supp; // the divisor D_calQ
 
-	/* Creation of the one-point divisor */
+	/* Creation of the divisor */
 	
-	G:=s*ell*R_inf;
+	SuppG:=[];
+	repeat
+		Rand := Random(Plc);
+		Exclude(~Plc,Rand);
+		if RepresentativePoint(Rand)[1] notin LX then
+    			Append(~SuppG,Rand);
+    			Append(~LX,RepresentativePoint(Rand)[1]);
+    			Append(~LY,RepresentativePoint(Rand)[2]);
+    			for j := 1 to ell-1 do
+        			rr:= (C2!RepresentativePoint(Rand))@(sigma^j);
+        			RR:=Place(rr);
+        			Append(~LY,RepresentativePoint(RR)[2]);
+        			Exclude(~Plc,RR);
+        			Append(~SuppG,RR);
+    			end for;
+    		end if;
+	until #SuppG eq ell;      //SuppG is the support of G, of size ell (one orbit)
+	Temp := &+SuppG;
+	G:=s*Temp;
 
 	/* Construction of the differential w */
 
@@ -169,7 +190,20 @@ CodeCreation := function(r,s)
 
 	P_inf := Places(C1,1)[1];
 	Places_inv:=Places(C1,1);
-	G_tilde := Floor(Degree(G)/ell)*P_inf;  // the invariant divisor G_tilde
+	
+	/* On construit G_tilde*/
+	SuppGtilde := [];
+	needed := RepresentativePoint(SuppG[1])[1];
+	repeat 
+		check := Random(Places_inv);
+		Exclude(~Places_inv, check);
+		if RepresentativePoint(check)[1] eq needed then
+			Append(~SuppGtilde,check);
+		end if;	
+	until #SuppGtilde eq 1;
+	G_tilde := s*SuppGtilde[1];  //the invariant divisor
+
+
 	SeqO_p := [];
 	for i := 1 to r do 
 		for j in [1..#Places(C1,1)] do
@@ -195,7 +229,7 @@ CodeCreation := function(r,s)
 	Pzk := [Place(p) : p in O_p];
 	Supp_Inv:=[Place(p) : p in Plc_Inv];  // the invariant support calP, which is known
 	Op:= &+Pzk;  //The divisor Op in the definition of D
-	D := (Floor((2*Genus(C2)-2+n*a)/ell)-s-1) * P_inf - Op; //the divisor D		
+	D := (Floor((2*Genus(C2)-2+n*a)/ell)) * P_inf - (s+1)*SuppGtilde[1] - Op; //the divisor D		
 	return D,Vect_res,G_pub,Supp_Inv,z_ev;
 end function;	
 
@@ -345,4 +379,8 @@ end function;
 
 		
 /* One can check that: z_init eq z_found when no error occured.*/
+
+
+
+
 
