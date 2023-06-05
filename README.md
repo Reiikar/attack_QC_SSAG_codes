@@ -34,13 +34,15 @@ What the function does
 
 ---
 
-1. This function creates a QC-SSAG code defined on Y, with a support of length n=ell\*r and divisor G=ell\*s\*Q_inf, invariant under a random order ell automorphism in the galois group of Y ---> K.
-2. While sampling the secret support, the y-evaluation vector is set aside (supposed unknown).
-3. From the knowledge of the invariant support and divisor, several linear systems are constructed, then one attempt to solve them.
-4. When we find a unique solution, the fonction outputs:
+1. This function creates a QC-SSAG code defined on Y, with a support of length n=ell\*r and divisor G, invariant under a random order ell automorphism in the galois group of Y ---> K. Both file are the same exepted for the choice of the divisor:
+-in `"security_reduction_Kummer.mgm";`, G = ell\*s\*Q_inf is a multiple of the unique point at infinity.
+-in `"security_reduction_Kummer_bis.mgm";`, G = \*s\*(Q_1 + ... + Q_{ell} is a multiple of a random orbit of size ell.
+3. While sampling the secret support, the y-evaluation vector is set aside (supposed unknown).
+4. From the knowledge of the invariant support and divisor, several linear systems are constructed, then one attempt to solve them.
+5. When we find a unique solution, the fonction outputs:
   - another vector, supposed to be equal to the y-evaluation vector;
   - the initial (unknown) y-evaluation vector, so that you can check we find the good one;
-5. Else, it outputs an error.
+6. Else, it outputs an error.
 
 ---
 
