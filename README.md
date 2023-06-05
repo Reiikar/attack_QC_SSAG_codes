@@ -20,9 +20,9 @@ How to use
 
 ---
 
-Open Magma and 
+Open Magma and type
 
-`load "security_reduction_Kummer.mgm";`
+`load "security_reduction_Kummer.mgm";` or `load "security_reduction_Kummer_bis.mgm";` 
 
 The cover of curve is fixed in the code, i.e. Y is a degree ell=3 Kummer cover of X. You can instantiate an attack by chosing two integers r>0 and s>0, then run
 
